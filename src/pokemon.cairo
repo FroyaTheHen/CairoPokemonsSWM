@@ -57,7 +57,6 @@ use core::starknet::storage::{StorageMapReadAccess, StorageMapWriteAccess, Stora
     #[constructor]
     fn constructor(
         ref self: ContractState, 
-        // pokemon: Pokemon // plus times 3??
     ) {
         let owner: ContractAddress = get_caller_address();
         let pokemon1 = Pokemon {
@@ -106,10 +105,10 @@ use core::starknet::storage::{StorageMapReadAccess, StorageMapWriteAccess, Stora
         }
 
         fn vote(ref self: ContractState, name: ByteArray) {
-            let mut pokemon: Pokemon = self.get_pokemon(name);
+            let (mut pokemon, index) =  self.get_pokemon_with_index(name);
             pokemon.like();            
 
-            self.pokemons.write(2, pokemon) // TODO: fix hardcoded index here
+            self.pokemons.write(index, pokemon)
 
             // TODO: logic for one-pokemon can be liked only once per user
         }
@@ -136,22 +135,11 @@ use core::starknet::storage::{StorageMapReadAccess, StorageMapWriteAccess, Stora
         }
 
         fn get_pokemon(self: @ContractState, name: ByteArray) -> Pokemon {
-            let poke_count = self.pokemon_count.read();
-            let mut i = poke_count;
-
-            let result = loop {
-                let mut pokemon: Pokemon = self.pokemons.read(i);
-                if name == pokemon.name {
-                    break pokemon;
-                }
-                i -= 1;
-            }; 
-            result
-            // TODO: use get_pokemon_with_index
+            let (mut pokemon, _index) =  self.get_pokemon_with_index(name);
+            pokemon
         }
 
         fn get_pokemon_with_index(self: @ContractState, name: ByteArray) -> (Pokemon, felt252) {
-            // zwróć tu tupla z poke, index
             let poke_count = self.pokemon_count.read();
             let mut i = poke_count;
 
