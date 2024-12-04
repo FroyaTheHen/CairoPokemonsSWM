@@ -93,7 +93,6 @@ fn test_retrieve_pokemons(){
 #[test]
 fn test_create_new_pokemon(){
     let contract_address = deploy_contract("PokeStarknet");
-
     let dispatcher = IPokeStarknetDispatcher { contract_address };
     
     dispatcher.create_new_pokemon(name:"Felicia", species_type: SpeciesType::Fire);
@@ -109,12 +108,8 @@ fn test_create_new_pokemon(){
 #[test]
 fn test_voting_pokemon(){
     let contract_address = deploy_contract("PokeStarknet");
-
     let dispatcher = IPokeStarknetDispatcher { contract_address };
-    
-
     dispatcher.vote("third random pokemon");
-
     let pokemon = dispatcher.get_pokemon("third random pokemon");
     assert(pokemon.likes_counter==1, 'nie rowna sie jeden');
 

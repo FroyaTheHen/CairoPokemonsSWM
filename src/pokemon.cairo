@@ -1,5 +1,4 @@
 use starknet::{ContractAddress};
-use core::dict::Felt252Dict;
 
 
 #[derive(Serde, Debug, Drop, Copy, PartialEq, starknet::Store)]
@@ -17,6 +16,7 @@ pub struct Pokemon {
     pub species_type: SpeciesType,
     pub likes_counter: u64,
     pub id: felt252,
+    pub owner: ContractAddress,
 }
 
 
@@ -37,7 +37,7 @@ pub trait IPokeStarknet<TContractState> {
     fn increase_poke_count(ref self: TContractState);
     fn get_pokemons(self: @TContractState) -> Array<Pokemon>;
     fn get_pokemon(self: @TContractState, name: ByteArray) -> Pokemon;
-
+    fn get_pokemon_with_index(self: @TContractState, name: ByteArray) -> (Pokemon, felt252) ;
 }
 
 #[starknet::contract]
@@ -59,23 +59,27 @@ use core::starknet::storage::{StorageMapReadAccess, StorageMapWriteAccess, Stora
         ref self: ContractState, 
         // pokemon: Pokemon // plus times 3??
     ) {
+        let owner: ContractAddress = get_caller_address();
         let pokemon1 = Pokemon {
             name: "first random pokemon",
             species_type: SpeciesType::Fire,
             likes_counter: 0,
             id: 0,
+            owner: owner,
         };
         let pokemon2 = Pokemon {
             name: "second random pokemon",
             species_type: SpeciesType::Water,
             likes_counter: 0,
             id: 1,
+            owner: owner,
         };
         let pokemon3 = Pokemon {
             name: "third random pokemon",
             species_type: SpeciesType::Grass,
             likes_counter: 0,
             id: 2,
+            owner: owner,
         };
         self.pokemons.write(0, pokemon1);
         self.pokemons.write(1, pokemon2);
@@ -89,11 +93,13 @@ use core::starknet::storage::{StorageMapReadAccess, StorageMapWriteAccess, Stora
     impl PokeStarknetImpl of super::IPokeStarknet<ContractState> {
         fn create_new_pokemon(ref self: ContractState, name: ByteArray, species_type: SpeciesType
         ) {
+            let owner: ContractAddress = get_caller_address();
             let new_pokemon = Pokemon { 
                 name: name,
                 species_type: species_type,
                 likes_counter: 0,
                 id: self.pokemon_count.read().into(),
+                owner: owner,
             };
             self.pokemons.write(3, new_pokemon);
             self.increase_poke_count();
@@ -102,7 +108,9 @@ use core::starknet::storage::{StorageMapReadAccess, StorageMapWriteAccess, Stora
         fn vote(ref self: ContractState, name: ByteArray) {
             let mut pokemon: Pokemon = self.get_pokemon(name);
             pokemon.like();            
-            self.pokemons.write(2, pokemon)
+
+            self.pokemons.write(2, pokemon) // TODO: fix hardcoded index here
+
             // TODO: logic for one-pokemon can be liked only once per user
         }
 
@@ -139,7 +147,23 @@ use core::starknet::storage::{StorageMapReadAccess, StorageMapWriteAccess, Stora
                 i -= 1;
             }; 
             result
-    }
+            // TODO: use get_pokemon_with_index
+        }
+
+        fn get_pokemon_with_index(self: @ContractState, name: ByteArray) -> (Pokemon, felt252) {
+            // zwróć tu tupla z poke, index
+            let poke_count = self.pokemon_count.read();
+            let mut i = poke_count;
+
+            let result = loop {
+                let mut pokemon: Pokemon = self.pokemons.read(i);
+                if name == pokemon.name {
+                    break pokemon;
+                }
+                i -= 1;
+            }; 
+            (result, i)
+        }
 
     }
 }
