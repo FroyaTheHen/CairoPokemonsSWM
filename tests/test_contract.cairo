@@ -79,13 +79,43 @@ fn test_retrieve_pokemons(){
     let name: ByteArray =  "first random pokemon";
     let p1 = dispatcher.get_pokemon(name);
     assert(p1.likes_counter == 0, 'get pokemon likes counter');
-    assert(p1.id == 1, 'get pokemons id');
+    assert(p1.id == 0, 'get pokemons id');
     assert(p1.species_type == SpeciesType::Fire, 'get pokemons SpeciesType');
 
     let name2: ByteArray =  "second random pokemon";
     let p2 = dispatcher.get_pokemon(name2);
     assert(p2.likes_counter == 0, 'get pokemon likes counter');
-    assert(p2.id == 2, 'get pokemons id');
+    assert(p2.id == 1, 'get pokemons id');
     assert(p2.species_type == SpeciesType::Water, 'get pokemons SpeciesType');
 
 }   
+
+#[test]
+fn test_create_new_pokemon(){
+    let contract_address = deploy_contract("PokeStarknet");
+
+    let dispatcher = IPokeStarknetDispatcher { contract_address };
+    
+    dispatcher.create_new_pokemon(name:"Felicia", species_type: SpeciesType::Fire);
+    let felicia = dispatcher.get_pokemon("Felicia");
+    
+    assert(felicia.id == 3, felicia.id);
+    assert(dispatcher.get_pokemons_count() == 4, dispatcher.get_pokemons_count());
+    assert(felicia.species_type == SpeciesType::Fire, 'Fire');
+    assert(felicia.name == "Felicia", 'name');
+}
+
+
+#[test]
+fn test_voting_pokemon(){
+    let contract_address = deploy_contract("PokeStarknet");
+
+    let dispatcher = IPokeStarknetDispatcher { contract_address };
+    
+
+    dispatcher.vote("third random pokemon");
+
+    let pokemon = dispatcher.get_pokemon("third random pokemon");
+    assert(pokemon.likes_counter==1, 'nie rowna sie jeden');
+
+}

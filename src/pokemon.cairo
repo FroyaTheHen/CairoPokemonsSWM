@@ -13,16 +13,20 @@ pub enum SpeciesType {
 
 #[derive(Serde, Clone, Debug, Drop, PartialEq, starknet::Store)]
 pub struct Pokemon {
-    pub name: ByteArray,
+    pub name: ByteArray,  // TODO: guarantee uniqe
     pub species_type: SpeciesType,
     pub likes_counter: u64,
     pub id: felt252,
 }
 
 
-// pub trait PokemonTrait<TContractState>  {
-//     fn like(self: @Pokemon) -> ByteArray;
-// }
+#[generate_trait]
+pub impl PokemonImpl of PokemonTrait {
+    fn like(ref self: Pokemon) {
+        self.likes_counter += 1;
+    }
+    
+}
 
 
 #[starknet::interface]
@@ -38,13 +42,14 @@ pub trait IPokeStarknet<TContractState> {
 
 #[starknet::contract]
 mod PokeStarknet {
-    use core::starknet::storage::{StorageMapReadAccess, StorageMapWriteAccess, StoragePointerReadAccess, StoragePointerWriteAccess, StoragePathEntry, Map};
+    use snforge_std::trace::Debug;
+use super::IPokeStarknet;
+use core::starknet::storage::{StorageMapReadAccess, StorageMapWriteAccess, StoragePointerReadAccess, StoragePointerWriteAccess, StoragePathEntry, Map};
     use core::starknet::{ContractAddress, get_caller_address};
     use super::*;
 
     #[storage]
     struct Storage {
-        balance: felt252,
         pokemon_count: felt252,
         pokemons: Map<felt252, Pokemon>,
     }
@@ -58,23 +63,23 @@ mod PokeStarknet {
             name: "first random pokemon",
             species_type: SpeciesType::Fire,
             likes_counter: 0,
-            id: 1,
+            id: 0,
         };
         let pokemon2 = Pokemon {
             name: "second random pokemon",
             species_type: SpeciesType::Water,
             likes_counter: 0,
-            id: 2,
+            id: 1,
         };
         let pokemon3 = Pokemon {
             name: "third random pokemon",
             species_type: SpeciesType::Grass,
             likes_counter: 0,
-            id: 3,
+            id: 2,
         };
-        self.pokemons.write(1, pokemon1);
-        self.pokemons.write(2, pokemon2);
-        self.pokemons.write(3, pokemon3);
+        self.pokemons.write(0, pokemon1);
+        self.pokemons.write(1, pokemon2);
+        self.pokemons.write(2, pokemon3);
 
         self.pokemon_count.write(3);
     }  
@@ -84,17 +89,21 @@ mod PokeStarknet {
     impl PokeStarknetImpl of super::IPokeStarknet<ContractState> {
         fn create_new_pokemon(ref self: ContractState, name: ByteArray, species_type: SpeciesType
         ) {
-            let new_pokemon = Pokemon {
+            let new_pokemon = Pokemon { 
                 name: name,
                 species_type: species_type,
                 likes_counter: 0,
-                id: 1,
+                id: self.pokemon_count.read().into(),
             };
-            self.pokemons.write(4, new_pokemon)
+            self.pokemons.write(3, new_pokemon);
+            self.increase_poke_count();
         }
 
         fn vote(ref self: ContractState, name: ByteArray) {
-            // self.
+            let mut pokemon: Pokemon = self.get_pokemon(name);
+            pokemon.like();            
+            self.pokemons.write(2, pokemon)
+            // TODO: logic for one-pokemon can be liked only once per user
         }
 
         fn get_pokemons_count(self: @ContractState) -> felt252 {
