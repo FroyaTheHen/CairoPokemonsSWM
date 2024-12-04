@@ -20,11 +20,6 @@ pub struct Pokemon {
 }
 
 
-// pub trait PokemonTrait<TContractState>  {
-//     fn like(self: @Pokemon) -> ByteArray;
-// }
-
-
 #[starknet::interface]
 pub trait IPokeStarknet<TContractState> {
     fn vote(ref self: TContractState, name: ByteArray);
@@ -32,7 +27,7 @@ pub trait IPokeStarknet<TContractState> {
     fn get_pokemons_count(self: @TContractState) -> felt252;
     fn increase_poke_count(ref self: TContractState);
     fn get_pokemons(self: @TContractState) -> Array<Pokemon>;
-    fn get_pokemon(self: @TContractState, name: ByteArray) -> Pokemon;
+    fn get_pokemon(self: @TContractState, name: ByteArray) -> Option<Pokemon>;
 
 }
 
@@ -118,14 +113,17 @@ mod PokeStarknet {
             pokemons
         }
 
-        fn get_pokemon(self: @ContractState, name: ByteArray) -> Pokemon {
+        fn get_pokemon(self: @ContractState, name: ByteArray) -> Option<Pokemon> {
             let poke_count = self.pokemon_count.read();
-            let mut i = poke_count;
+            let mut i = poke_count -1;
 
-            let result = loop {
-                let mut pokemon: Pokemon = self.pokemons.read(i);
+            let result: Option<Pokemon> = loop {
+                let pokemon: Pokemon = self.pokemons.read(i);
                 if name == pokemon.name {
                     break pokemon;
+                }
+                if i == 0 {
+                    break Option::None;
                 }
                 i -= 1;
             }; 
