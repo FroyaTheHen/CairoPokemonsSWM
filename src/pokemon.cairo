@@ -1,5 +1,10 @@
+use starknet::{ContractAddress};
+use core::dict::Felt252Dict;
+
+
 #[derive(Serde, Debug, Drop, Copy, PartialEq, starknet::Store)]
 pub enum SpeciesType {
+    # [default]
     Water,
     Fire,
     Grass
@@ -15,9 +20,9 @@ pub struct Pokemon {
 }
 
 
-pub trait PokemonTrait<TContractState>  {
-    fn like(self: @Pokemon) -> ByteArray;
-}
+// pub trait PokemonTrait<TContractState>  {
+//     fn like(self: @Pokemon) -> ByteArray;
+// }
 
 
 #[starknet::interface]
@@ -27,10 +32,10 @@ pub trait IPokeStarknet<TContractState> {
     fn get_pokemons_count(self: @TContractState) -> felt252;
     fn increase_poke_count(ref self: TContractState);
     fn get_pokemons(self: @TContractState) -> Array<Pokemon>;
+    fn get_pokemon(self: @TContractState, name: ByteArray) -> Pokemon;
 
 }
 
-/// Simple contract for managing balance.
 #[starknet::contract]
 mod PokeStarknet {
     use core::starknet::storage::{StorageMapReadAccess, StorageMapWriteAccess, StoragePointerReadAccess, StoragePointerWriteAccess, StoragePathEntry, Map};
@@ -57,21 +62,21 @@ mod PokeStarknet {
         };
         let pokemon2 = Pokemon {
             name: "second random pokemon",
-            species_type: SpeciesType::Fire,
+            species_type: SpeciesType::Water,
             likes_counter: 0,
-            id: 1,
+            id: 2,
         };
         let pokemon3 = Pokemon {
             name: "third random pokemon",
-            species_type: SpeciesType::Fire,
+            species_type: SpeciesType::Grass,
             likes_counter: 0,
-            id: 1,
+            id: 3,
         };
         self.pokemons.write(1, pokemon1);
         self.pokemons.write(2, pokemon2);
         self.pokemons.write(3, pokemon3);
 
-        self.pokemon_count.write(3)
+        self.pokemon_count.write(3);
     }  
 
 
@@ -102,20 +107,30 @@ mod PokeStarknet {
         }
 
         fn get_pokemons(self: @ContractState) -> Array<Pokemon> {
-            // doesn't work ;P 
             let mut pokemons: Array<Pokemon> = ArrayTrait::new();
             let mut i = 0;
             let poke_count = self.pokemon_count.read();
 
             while i != poke_count {
-                pokemons.append(self.pokemons.read(i));
+                pokemons.append(self.pokemons.entry(i).read());
                 i += 1;
             };
             pokemons
-
         }
 
-        
-            
-}
+        fn get_pokemon(self: @ContractState, name: ByteArray) -> Pokemon {
+            let poke_count = self.pokemon_count.read();
+            let mut i = poke_count;
+
+            let result = loop {
+                let mut pokemon: Pokemon = self.pokemons.read(i);
+                if name == pokemon.name {
+                    break pokemon;
+                }
+                i -= 1;
+            }; 
+            result
+    }
+
+    }
 }

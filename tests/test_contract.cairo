@@ -1,3 +1,4 @@
+use core::traits::IndexView;
 use starknet::ContractAddress;
 
 use snforge_std::{declare, ContractClassTrait, DeclareResultTrait};
@@ -65,3 +66,26 @@ fn test_pokemons_count() {
     assert(balance_after == 4, balance_after);
 }
 
+#[test]
+fn test_retrieve_pokemons(){
+    let contract_address = deploy_contract("PokeStarknet");
+
+    let dispatcher = IPokeStarknetDispatcher { contract_address };
+    let res = dispatcher.get_pokemons();
+
+    assert(res.is_empty() == false, 'Xdxd');
+    assert(res.len() == 3, 'nie rowna sie 3');
+
+    let name: ByteArray =  "first random pokemon";
+    let p1 = dispatcher.get_pokemon(name);
+    assert(p1.likes_counter == 0, 'get pokemon likes counter');
+    assert(p1.id == 1, 'get pokemons id');
+    assert(p1.species_type == SpeciesType::Fire, 'get pokemons SpeciesType');
+
+    let name2: ByteArray =  "second random pokemon";
+    let p2 = dispatcher.get_pokemon(name2);
+    assert(p2.likes_counter == 0, 'get pokemon likes counter');
+    assert(p2.id == 2, 'get pokemons id');
+    assert(p2.species_type == SpeciesType::Water, 'get pokemons SpeciesType');
+
+}   
