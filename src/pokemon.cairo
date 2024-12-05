@@ -12,7 +12,7 @@ pub enum SpeciesType {
 
 #[derive(Serde, Clone, Debug, Drop, PartialEq, starknet::Store)]
 pub struct Pokemon {
-    pub name: ByteArray,  // TODO: guarantee uniqe ? 
+    pub name: ByteArray, 
     pub species_type: SpeciesType,
     pub likes_counter: u64,
     pub id: felt252,  // id maps to index in storage pokemons attr
@@ -36,7 +36,7 @@ pub trait IPokeStarknet<TContractState> {
     fn get_pokemons_count(self: @TContractState) -> felt252;
     fn increase_poke_count(ref self: TContractState);
     fn get_pokemons(self: @TContractState) -> Array<Pokemon>;
-    fn get_pokemon(self: @TContractState, name: ByteArray) -> Pokemon; // TODO: make optional
+    fn get_pokemon(self: @TContractState, name: ByteArray) -> Pokemon; // panics if pokemon doesn't exist
     fn get_pokemon_with_index(self: @TContractState, name: ByteArray) -> Option<(felt252, Pokemon)>;
     fn user_likes_pokemon(ref self: TContractState, name: ByteArray) -> bool;
 }
@@ -104,10 +104,10 @@ use core::starknet::storage::{StorageMapReadAccess, StorageMapWriteAccess, Stora
 
             // TODO: there must be a nicer way to write the uniqe name validation
             let pokemon_clone = new_pokemon.clone(); // How to preserving lifetime nicer?? 
-            let (_index, pokemon) =  self.get_pokemon_with_index(pokemon_clone.name).unwrap_or((0, new_pokemon.clone())); // TODO: fix
-            assert(pokemon.name == new_pokemon.name, 'Pokemon already exists');
-            //
-
+            let res = self.get_pokemon_with_index(pokemon_clone.name);
+            if res.is_some(){
+                panic!("Pokemon already exists");
+            }
             self.pokemons.write(3, new_pokemon);
             self.increase_poke_count();
         }

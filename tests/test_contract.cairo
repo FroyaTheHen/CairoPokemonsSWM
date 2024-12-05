@@ -85,3 +85,13 @@ fn test_xxx(){
 
     dispatcher.get_pokemon_with_index("does not exist");
 }
+
+#[test]
+#[should_panic]
+fn should_panic_exact() {
+    let contract_address = deploy_contract("PokeStarknet");
+    let dispatcher = IPokeStarknetDispatcher { contract_address };
+    
+    dispatcher.create_new_pokemon(name:"first random pokemon", species_type: SpeciesType::Fire);
+
+}
