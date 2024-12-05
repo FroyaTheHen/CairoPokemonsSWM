@@ -76,3 +76,12 @@ fn test_voting_pokemon(){
 
     // TODO: add test simulating another user
 }
+
+
+#[test]
+fn test_xxx(){
+    let contract_address = deploy_contract("PokeStarknet");
+    let dispatcher = IPokeStarknetDispatcher { contract_address };
+
+    dispatcher.get_pokemon_with_index("does not exist");
+}

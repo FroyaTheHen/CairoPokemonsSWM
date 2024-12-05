@@ -37,7 +37,7 @@ pub trait IPokeStarknet<TContractState> {
     fn increase_poke_count(ref self: TContractState);
     fn get_pokemons(self: @TContractState) -> Array<Pokemon>;
     fn get_pokemon(self: @TContractState, name: ByteArray) -> Pokemon; // TODO: make optional
-    fn get_pokemon_with_index(self: @TContractState, name: ByteArray) -> (Pokemon, felt252);
+    fn get_pokemon_with_index(self: @TContractState, name: ByteArray) -> Option<(felt252, Pokemon)>;
     fn user_likes_pokemon(ref self: TContractState, name: ByteArray) -> bool;
 }
 
@@ -101,17 +101,25 @@ use core::starknet::storage::{StorageMapReadAccess, StorageMapWriteAccess, Stora
                 id: self.pokemon_count.read().into(),
                 owner: owner,
             };
+
+            // TODO: there must be a nicer way to write the uniqe name validation
+            let pokemon_clone = new_pokemon.clone(); // How to preserving lifetime nicer?? 
+            let (_index, pokemon) =  self.get_pokemon_with_index(pokemon_clone.name).unwrap_or((0, new_pokemon.clone())); // TODO: fix
+            assert(pokemon.name == new_pokemon.name, 'Pokemon already exists');
+            //
+
             self.pokemons.write(3, new_pokemon);
             self.increase_poke_count();
         }
 
         fn vote(ref self: ContractState, name: ByteArray) {
-            let (mut pokemon, index) =  self.get_pokemon_with_index(name);
+            let (mut index, mut pokemon) =  self.get_pokemon_with_index(name).unwrap();
             pokemon.like();            
 
             self.pokemons.write(index, pokemon);
             let caller = get_caller_address();
             self.likes_map.entry(caller).entry(index).write(true);
+            // TODO: return ERC20
             // one-pokemon can be liked only once per user 
             // but we don't care cuse the value gets overrden each time
         }
@@ -138,27 +146,30 @@ use core::starknet::storage::{StorageMapReadAccess, StorageMapWriteAccess, Stora
         }
 
         fn get_pokemon(self: @ContractState, name: ByteArray) -> Pokemon {
-            let (mut pokemon, _index) =  self.get_pokemon_with_index(name);
+            let (_index, pokemon) =  self.get_pokemon_with_index(name).unwrap();
             pokemon
         }
 
-        fn get_pokemon_with_index(self: @ContractState, name: ByteArray) -> (Pokemon, felt252) {
+        fn get_pokemon_with_index(self: @ContractState, name: ByteArray) -> Option<(felt252, Pokemon)> {
             let poke_count = self.pokemon_count.read();
             let mut i = poke_count;
 
-            let result = loop {
-                let mut pokemon: Pokemon = self.pokemons.read(i);
+            loop {
+                let mut pokemon = self.pokemons.read(i);
                 if name == pokemon.name {
-                    break pokemon;
+                    break Option::Some((i, pokemon));
                 }
                 i -= 1;
-            }; 
-            (result, i)
+                if i == -1 {
+                    break Option::None;
+                }
+            }
+
         }
 
         fn user_likes_pokemon(ref self: ContractState, name: ByteArray) -> bool {
             let caller: ContractAddress = get_caller_address();
-            let (mut _pokemon, index) =  self.get_pokemon_with_index(name);
+            let (index, _pokemon) =  self.get_pokemon_with_index(name).unwrap();
             self.likes_map.entry(caller).entry(index).read()
         }
 
