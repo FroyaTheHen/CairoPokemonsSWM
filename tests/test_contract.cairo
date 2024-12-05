@@ -1,5 +1,5 @@
 use core::traits::IndexView;
-use starknet::ContractAddress;
+use core::starknet::{ContractAddress, get_caller_address};
 
 use snforge_std::{declare, ContractClassTrait, DeclareResultTrait};
 
@@ -100,8 +100,8 @@ fn test_create_new_pokemon(){
     
     assert(felicia.id == 3, felicia.id);
     assert(dispatcher.get_pokemons_count() == 4, dispatcher.get_pokemons_count());
-    assert(felicia.species_type == SpeciesType::Fire, 'Fire');
-    assert(felicia.name == "Felicia", 'name');
+    assert(felicia.species_type == SpeciesType::Fire, 'SpeciesType failed');
+    assert(felicia.name == "Felicia", 'name failed');
 }
 
 
@@ -113,4 +113,8 @@ fn test_voting_pokemon(){
     let pokemon = dispatcher.get_pokemon("third random pokemon");
     assert(pokemon.likes_counter==1, 'nie rowna sie jeden');
 
+    let is_liked: bool = dispatcher.user_likes_pokemon("third random pokemon");
+    assert(is_liked, 'is not liked');
+
+    // TODO: add test simulating another user
 }

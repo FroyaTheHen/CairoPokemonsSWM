@@ -3,7 +3,7 @@ use starknet::{ContractAddress};
 
 #[derive(Serde, Debug, Drop, Copy, PartialEq, starknet::Store)]
 pub enum SpeciesType {
-    # [default]
+    #[default]
     Water,
     Fire,
     Grass
@@ -12,10 +12,10 @@ pub enum SpeciesType {
 
 #[derive(Serde, Clone, Debug, Drop, PartialEq, starknet::Store)]
 pub struct Pokemon {
-    pub name: ByteArray,  // TODO: guarantee uniqe
+    pub name: ByteArray,  // TODO: guarantee uniqe ? 
     pub species_type: SpeciesType,
     pub likes_counter: u64,
-    pub id: felt252,
+    pub id: felt252,  // id maps to index in storage pokemons attr
     pub owner: ContractAddress,
 }
 
@@ -36,8 +36,9 @@ pub trait IPokeStarknet<TContractState> {
     fn get_pokemons_count(self: @TContractState) -> felt252;
     fn increase_poke_count(ref self: TContractState);
     fn get_pokemons(self: @TContractState) -> Array<Pokemon>;
-    fn get_pokemon(self: @TContractState, name: ByteArray) -> Pokemon;
-    fn get_pokemon_with_index(self: @TContractState, name: ByteArray) -> (Pokemon, felt252) ;
+    fn get_pokemon(self: @TContractState, name: ByteArray) -> Pokemon; // TODO: make optional
+    fn get_pokemon_with_index(self: @TContractState, name: ByteArray) -> (Pokemon, felt252);
+    fn user_likes_pokemon(ref self: TContractState, name: ByteArray) -> bool;
 }
 
 #[starknet::contract]
@@ -52,6 +53,7 @@ use core::starknet::storage::{StorageMapReadAccess, StorageMapWriteAccess, Stora
     struct Storage {
         pokemon_count: felt252,
         pokemons: Map<felt252, Pokemon>,
+        likes_map: Map<ContractAddress, Map<felt252, bool>>, // user id <pokemon id, ~/liked 
     }
 
     #[constructor]
@@ -108,9 +110,11 @@ use core::starknet::storage::{StorageMapReadAccess, StorageMapWriteAccess, Stora
             let (mut pokemon, index) =  self.get_pokemon_with_index(name);
             pokemon.like();            
 
-            self.pokemons.write(index, pokemon)
-
-            // TODO: logic for one-pokemon can be liked only once per user
+            self.pokemons.write(index, pokemon);
+            let caller = get_caller_address();
+            self.likes_map.entry(caller).entry(index).write(true);
+            // one-pokemon can be liked only once per user 
+            // but we don't care cuse the value gets overrden each time
         }
 
         fn get_pokemons_count(self: @ContractState) -> felt252 {
@@ -151,6 +155,12 @@ use core::starknet::storage::{StorageMapReadAccess, StorageMapWriteAccess, Stora
                 i -= 1;
             }; 
             (result, i)
+        }
+
+        fn user_likes_pokemon(ref self: ContractState, name: ByteArray) -> bool {
+            let caller: ContractAddress = get_caller_address();
+            let (mut _pokemon, index) =  self.get_pokemon_with_index(name);
+            self.likes_map.entry(caller).entry(index).read()
         }
 
     }
