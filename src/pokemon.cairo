@@ -43,16 +43,30 @@ pub trait IPokeStarknet<TContractState> {
 
 #[starknet::contract]
 mod PokeStarknet {
+use ERC20Component::InternalTrait;
 use super::IPokeStarknet;
 use core::starknet::storage::{StorageMapReadAccess, StorageMapWriteAccess, StoragePointerReadAccess, StoragePointerWriteAccess, StoragePathEntry, Map};
     use core::starknet::{ContractAddress, get_caller_address};
-    use super::*;
+    use super::{Pokemon, SpeciesType, PokemonTrait};
+    use openzeppelin::token::erc20::{ERC20Component, ERC20HooksEmptyImpl};
+
+    component!(path: ERC20Component, storage: erc20, event: ERC20Event);
+
 
     #[storage]
     struct Storage {
         pokemon_count: felt252,
         pokemons: Map<felt252, Pokemon>,
         likes_map: Map<ContractAddress, Map<felt252, bool>>, // user id <pokemon id, ~/liked 
+        #[substorage(v0)]
+        erc20: ERC20Component::Storage
+    }
+
+    #[event]
+    #[derive(Drop, starknet::Event)]
+    enum Event {
+        #[flat]
+        ERC20Event: ERC20Component::Event
     }
 
     #[constructor]
@@ -86,6 +100,11 @@ use core::starknet::storage::{StorageMapReadAccess, StorageMapWriteAccess, Stora
         self.pokemons.write(2, pokemon3);
 
         self.pokemon_count.write(3);
+
+        let name = "MyToken";
+        let symbol = "MTK";
+
+        self.erc20.initializer(name, symbol);
     }  
 
 
@@ -108,8 +127,13 @@ use core::starknet::storage::{StorageMapReadAccess, StorageMapWriteAccess, Stora
             if res.is_some(){
                 panic!("Pokemon already exists");
             }
+            //
+
             self.pokemons.write(3, new_pokemon);
             self.increase_poke_count();
+            
+            let caller = get_caller_address();
+            self.erc20.burn(caller, 1);
         }
 
         fn vote(ref self: ContractState, name: ByteArray) {
@@ -119,9 +143,8 @@ use core::starknet::storage::{StorageMapReadAccess, StorageMapWriteAccess, Stora
             self.pokemons.write(index, pokemon);
             let caller = get_caller_address();
             self.likes_map.entry(caller).entry(index).write(true);
-            // TODO: return ERC20
-            // one-pokemon can be liked only once per user 
-            // but we don't care cuse the value gets overrden each time
+            
+            self.erc20.mint(caller, 1);
         }
 
         fn get_pokemons_count(self: @ContractState) -> felt252 {

@@ -53,6 +53,7 @@ fn test_create_new_pokemon(){
     let contract_address = deploy_contract("PokeStarknet");
     let dispatcher = IPokeStarknetDispatcher { contract_address };
     
+    dispatcher.vote("second random pokemon");  // get one token to pay for creating pokemon later
     dispatcher.create_new_pokemon(name:"Felicia", species_type: SpeciesType::Fire);
     let felicia = dispatcher.get_pokemon("Felicia");
     
@@ -79,19 +80,20 @@ fn test_voting_pokemon(){
 
 
 #[test]
-fn test_xxx(){
-    let contract_address = deploy_contract("PokeStarknet");
-    let dispatcher = IPokeStarknetDispatcher { contract_address };
-
-    dispatcher.get_pokemon_with_index("does not exist");
-}
-
-#[test]
 #[should_panic]
 fn should_panic_exact() {
     let contract_address = deploy_contract("PokeStarknet");
     let dispatcher = IPokeStarknetDispatcher { contract_address };
     
     dispatcher.create_new_pokemon(name:"first random pokemon", species_type: SpeciesType::Fire);
+}
 
+
+#[test]
+#[should_panic(expected: 'ERC20: insufficient balance')]
+fn should_panic_exact2() {
+    let contract_address = deploy_contract("PokeStarknet");
+    let dispatcher = IPokeStarknetDispatcher { contract_address };
+
+    dispatcher.create_new_pokemon(name:"lorem ipsum", species_type: SpeciesType::Fire);
 }
