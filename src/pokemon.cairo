@@ -43,7 +43,6 @@ pub trait IPokeStarknet<TContractState> {
 
 #[starknet::contract]
 mod PokeStarknet {
-    use snforge_std::trace::Debug;
 use super::IPokeStarknet;
 use core::starknet::storage::{StorageMapReadAccess, StorageMapWriteAccess, StoragePointerReadAccess, StoragePointerWriteAccess, StoragePathEntry, Map};
     use core::starknet::{ContractAddress, get_caller_address};
