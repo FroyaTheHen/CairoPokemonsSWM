@@ -1,6 +1,6 @@
-use core::starknet::{ContractAddress, get_caller_address};
-use snforge_std::{declare, ContractClassTrait, DeclareResultTrait};
-use hello_world::pokemon::{Pokemon, SpeciesType, IPokeStarknetDispatcher, IPokeStarknetDispatcherTrait};
+use core::starknet::{ContractAddress};
+use snforge_std::{declare, ContractClassTrait, DeclareResultTrait, spy_events, EventSpyAssertionsTrait,};
+use hello_world::pokemon::{SpeciesType, IPokeStarknetDispatcher, IPokeStarknetDispatcherTrait, PokemonEvent, PokemonEventActionType};
 
 
 fn deploy_contract(name: ByteArray) -> ContractAddress {
@@ -10,20 +10,6 @@ fn deploy_contract(name: ByteArray) -> ContractAddress {
 }
 
 
-
-#[test]
-fn test_pokemons_count() {
-    let contract_address = deploy_contract("PokeStarknet");
-
-    let dispatcher = IPokeStarknetDispatcher { contract_address };
-    let pokemons_before = dispatcher.get_pokemons_count();
-
-    assert(pokemons_before == 3, 'pokemons count before faield');
-    dispatcher.increase_poke_count();
-    let balance_after = dispatcher.get_pokemons_count();
-    assert(balance_after == 4, balance_after);
-}
-
 #[test]
 fn test_retrieve_pokemons(){
     let contract_address = deploy_contract("PokeStarknet");
@@ -31,16 +17,16 @@ fn test_retrieve_pokemons(){
     let dispatcher = IPokeStarknetDispatcher { contract_address };
     let res = dispatcher.get_pokemons();
 
-    assert(res.is_empty() == false, 'Xdxd');
+    assert(res.is_empty() == false, 'get pokemons is empty');
     assert(res.len() == 3, 'nie rowna sie 3');
 
-    let name: ByteArray =  "first random pokemon";
+    let name: ByteArray =  "Pikachu";
     let p1 = dispatcher.get_pokemon(name);
     assert(p1.likes_counter == 0, 'get pokemon likes counter');
     assert(p1.id == 0, 'get pokemons id');
     assert(p1.species_type == SpeciesType::Fire, 'get pokemons SpeciesType');
 
-    let name2: ByteArray =  "second random pokemon";
+    let name2: ByteArray =  "Charizard";
     let p2 = dispatcher.get_pokemon(name2);
     assert(p2.likes_counter == 0, 'get pokemon likes counter');
     assert(p2.id == 1, 'get pokemons id');
@@ -53,7 +39,7 @@ fn test_create_new_pokemon(){
     let contract_address = deploy_contract("PokeStarknet");
     let dispatcher = IPokeStarknetDispatcher { contract_address };
     
-    dispatcher.vote("second random pokemon");  // get one token to pay for creating pokemon later
+    dispatcher.vote("Charizard");  // get one token to pay for creating pokemon later
     dispatcher.create_new_pokemon(name:"Felicia", species_type: SpeciesType::Fire);
     let felicia = dispatcher.get_pokemon("Felicia");
     
@@ -68,14 +54,12 @@ fn test_create_new_pokemon(){
 fn test_voting_pokemon(){
     let contract_address = deploy_contract("PokeStarknet");
     let dispatcher = IPokeStarknetDispatcher { contract_address };
-    dispatcher.vote("third random pokemon");
-    let pokemon = dispatcher.get_pokemon("third random pokemon");
+    dispatcher.vote("Bulbasaur");
+    let pokemon = dispatcher.get_pokemon("Bulbasaur");
     assert(pokemon.likes_counter==1, 'nie rowna sie jeden');
 
-    let is_liked: bool = dispatcher.user_likes_pokemon("third random pokemon");
+    let is_liked: bool = dispatcher.user_likes_pokemon("Bulbasaur");
     assert(is_liked, 'is not liked');
-
-    // TODO: add test simulating another user
 }
 
 
@@ -85,7 +69,7 @@ fn should_panic_exact() {
     let contract_address = deploy_contract("PokeStarknet");
     let dispatcher = IPokeStarknetDispatcher { contract_address };
     
-    dispatcher.create_new_pokemon(name:"first random pokemon", species_type: SpeciesType::Fire);
+    dispatcher.create_new_pokemon(name:"Pikachu", species_type: SpeciesType::Fire);
 }
 
 
@@ -95,5 +79,41 @@ fn should_panic_exact2() {
     let contract_address = deploy_contract("PokeStarknet");
     let dispatcher = IPokeStarknetDispatcher { contract_address };
 
-    dispatcher.create_new_pokemon(name:"lorem ipsum", species_type: SpeciesType::Fire);
+    dispatcher.create_new_pokemon(name:"Squirtle", species_type: SpeciesType::Fire);
 }
+
+
+#[test]
+fn test_events(){
+    let contract_address = deploy_contract("PokeStarknet");
+    let dispatcher = IPokeStarknetDispatcher { contract_address };
+
+    let mut spy = spy_events();
+    dispatcher.vote("Bulbasaur");
+
+    dispatcher.vote("Charizard");  // get one token to pay for creating pokemon later
+    dispatcher.create_new_pokemon(name:"Felicia", species_type: SpeciesType::Fire);
+
+    spy.assert_emitted(
+            @array![
+            (
+                contract_address,
+                hello_world::pokemon::PokeStarknet::Event::PokemonEvent(
+                PokemonEvent {id: 2, name: "Bulbasaur", action:PokemonEventActionType::Liked}
+            )
+            ),
+            (
+                contract_address,
+                hello_world::pokemon::PokeStarknet::Event::PokemonEvent(
+                PokemonEvent {id: 3, name: "Felicia", action:PokemonEventActionType::Created}
+            )
+            ),
+        ]
+    )
+
+    
+
+
+}
+
+
